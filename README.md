@@ -16,7 +16,7 @@ Análisis de complejidad (Big-O) y profiling de algoritmos.
 ├── profiling.py           # Corre los programas, genera tablas y gráficas
 ├── resultados/            # CSV, tablas .md y gráficas .png generadas
 ├── respuestas/
-│   ├── respuestas.pdf     # Partes a (P1–P3), problema 4 y problema 5
+│   ├── respuestas.pdf     # Partes a y b (P1–P3), problema 4, problema 5 y capturas de ejecución
 │   └── respuestas.tex     # Fuente LaTeX del PDF
 └── Makefile
 ```
@@ -112,7 +112,7 @@ Cada ×10 en n multiplica el tiempo por ≈ 100. Las operaciones son exactamente
 
 ## Respuestas teóricas
 
-Ver [`respuestas/respuestas.pdf`](respuestas/respuestas.pdf):
+Ver [`respuestas/respuestas.pdf`](respuestas/respuestas.pdf) (incluye partes a y b de los problemas 1–3 con código, tablas y gráficas, además de los problemas 4, 5 y capturas de ejecución):
 
 | Problema | Resultado |
 |---|---|
