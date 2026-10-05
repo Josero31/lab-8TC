@@ -3,14 +3,17 @@
 \usepackage[margin=2.3cm]{geometry}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
-\usepackage{listings}
 \usepackage{xcolor}
-\usepackage{enumitem}
-\usepackage{hyperref}
+\usepackage{fancyvrb}
+\usepackage{graphicx}
+\usepackage{float}
 
-\lstset{basicstyle=\ttfamily\small, numbers=left, numberstyle=\tiny\color{gray},
-  frame=single, framerule=0.3pt, rulecolor=\color{gray!50}, columns=fullflexible,
-  keywordstyle=\color{blue!60!black}\bfseries, commentstyle=\color{gray}}
+% El paquete `listings` no está disponible en este TeX Live; se emula el
+% entorno lstlisting (usado en todo el documento) con fancyvrb, ignorando
+% las opciones de estilo/lenguaje (solo afectan resaltado de sintaxis).
+\fvset{frame=single, framesep=2.5mm, fontsize=\small, rulecolor=\color{gray!50},
+  framerule=0.3pt, xleftmargin=1mm, xrightmargin=1mm}
+\newenvironment{lstlisting}[1][]{\VerbatimEnvironment\begin{Verbatim}}{\end{Verbatim}}
 
 \newcommand{\Th}{\Theta}
 \setlength{\parskip}{0.5em}
@@ -23,13 +26,16 @@
 \begin{document}
 \maketitle
 
-Este documento contiene las \textbf{partes a} de los problemas 1--3 y los problemas 4 y 5 completos.
-Las \textbf{partes b} (implementación y profiling) están en el repositorio: código en \texttt{src/}, tablas y gráficas en \texttt{resultados/} y resumidas en el \texttt{README.md}.
+Este documento contiene las partes a y b de los problemas 1--3, y los problemas 4 y 5 completos.
+El código fuente también está en el repositorio (\texttt{src/}), y los datos crudos de profiling en \texttt{resultados/} (CSV) y resumidos en el \texttt{README.md}.
+
+\textbf{Metodología de medición (partes b).} El tiempo se mide \emph{dentro} de cada programa con \texttt{clock\_gettime(CLOCK\_MONOTONIC)} alrededor de la llamada a \texttt{function(n)}, así no se cuenta el arranque del proceso. Compilado con \texttt{gcc -O2}. En el problema 1 el contador es \texttt{volatile} para que el compilador no elimine ni colapse los ciclos. En los problemas 2 y 3 la salida de \texttt{printf} se redirige a \texttt{/dev/null} para medir el algoritmo y no la terminal. Corridas de menos de 1 s se repiten 5 veces y se reporta la mediana. El script de profiling valida que el número de operaciones contado por el programa coincida con la fórmula exacta derivada en cada parte a. Equipo de medición: VM Linux de 2 núcleos.
 
 Notación: $\lfloor\cdot\rfloor$ y $\lceil\cdot\rceil$ son piso y techo; \texttt{n/2} en C con enteros es $\lfloor n/2 \rfloor$.
 
 %=====================================================================
-\section*{Problema 1 --- Parte a}
+\section*{Problema 1}
+\subsection*{Parte a}
 
 \begin{lstlisting}[language=C]
 void function(int n) {
@@ -81,8 +87,73 @@ con lo que $T(n) = \Th(n^2 \log n)$ y, en particular,
 
 \textit{Verificación:} para $n=10$, $T = (5+1)\cdot 5 \cdot 4 = 120$, y para $n=1000$, $T = 501\cdot 500\cdot 10 = 2\,505\,000$; ambos coinciden con el contador del programa en C.
 
+\subsection*{Parte b --- Implementación y profiling}
+
+Código completo (\texttt{src/problema1.c}):
+
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+/* volatile evita que el compilador elimine o colapse los ciclos */
+static volatile long long counter;
+
+void function(int n) {
+    int i, j, k;
+    counter = 0;
+    for (i = n / 2; i <= n; i++) {
+        for (j = 1; j + n / 2 <= n; j++) {
+            for (k = 1; k <= n; k = k * 2) {
+                counter++;
+            }
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Uso: %s <n>\n", argv[0]);
+        return 1;
+    }
+    int n = atoi(argv[1]);
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    function(n);
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    double secs = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+    printf("%d,%lld,%.9f\n", n, counter, secs);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{rrrl}
+\toprule
+$n$ & Operaciones & Tiempo & Tipo \\
+\midrule
+1 & 2 & 0.12 \textmu s & medido \\
+10 & 120 & 0.46 \textmu s & medido \\
+100 & 17{,}850 & 43.61 \textmu s & medido \\
+1{,}000 & 2{,}505{,}000 & 6.408 ms & medido \\
+10{,}000 & 350{,}070{,}000 & 905.749 ms & medido \\
+100{,}000 & 42{,}500{,}850{,}000 & 127.379 s & medido \\
+1{,}000{,}000 & 5{,}000{,}010{,}000{,}000 & 14{,}985 s ($\approx$ 4.2 h) & estimado \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{../resultados/problema1.png}
+\caption{Problema 1: tamaño de input $n$ vs. tiempo (escala log-log).}
+\end{figure}
+
+Con $n=1\,000\,000$ el programa haría $\approx 5\times10^{12}$ incrementos ($\approx$ 4 horas), por lo que ese punto se estimó con $t(n) \approx t(m)\cdot \text{ops}(n)/\text{ops}(m)$ a partir de la corrida medida más grande. Pasar de $n=10^4$ a $10^5$ multiplicó el tiempo por $\approx 141$, consistente con $10^2 \cdot \log(10^5)/\log(10^4) \approx 125$, lo que confirma el crecimiento $O(n^2\log n)$.
+
 %=====================================================================
-\section*{Problema 2 --- Parte a}
+\section*{Problema 2}
+\subsection*{Parte a}
 
 \begin{lstlisting}[language=C]
 void function(int n) {
@@ -113,8 +184,73 @@ El término dominante es lineal:
 \]
 El \texttt{printf} se ejecuta exactamente $n$ veces para $n\ge 2$. El error típico es contar el ciclo interno como $n$ iteraciones y concluir $O(n^2)$; el \texttt{break} lo impide.
 
+\subsection*{Parte b --- Implementación y profiling}
+
+Código completo (\texttt{src/problema2.c}):
+
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+static long long impresiones = 0;
+
+void function(int n) {
+    if (n <= 1) return;
+    int i, j;
+    for (i = 1; i <= n; i++) {
+        for (j = 1; j <= n; j++) {
+            printf("Sequence\n");
+            impresiones++;
+            break;
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Uso: %s <n>\n", argv[0]);
+        return 1;
+    }
+    int n = atoi(argv[1]);
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    function(n);
+    fflush(stdout);
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    double secs = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+    fprintf(stderr, "%d,%lld,%.9f\n", n, impresiones, secs);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{rrrl}
+\toprule
+$n$ & Operaciones & Tiempo & Tipo \\
+\midrule
+1 & 0 & 4.00 \textmu s & medido \\
+10 & 10 & 18.24 \textmu s & medido \\
+100 & 100 & 19.37 \textmu s & medido \\
+1{,}000 & 1{,}000 & 29.52 \textmu s & medido \\
+10{,}000 & 10{,}000 & 130.40 \textmu s & medido \\
+100{,}000 & 100{,}000 & 1.209 ms & medido \\
+1{,}000{,}000 & 1{,}000{,}000 & 11.760 ms & medido \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{../resultados/problema2.png}
+\caption{Problema 2: tamaño de input $n$ vs. tiempo (escala log-log).}
+\end{figure}
+
+Por el \texttt{break}, el ciclo interno solo hace una iteración: el tiempo crece $\times 10$ por cada $\times 10$ en $n$ a partir de $n\approx 10^4$. Para $n$ pequeño domina el costo fijo de \texttt{printf}/\texttt{fflush}, lo que explica por qué los primeros puntos no siguen todavía la tendencia lineal.
+
 %=====================================================================
-\section*{Problema 3 --- Parte a}
+\section*{Problema 3}
+\subsection*{Parte a}
 
 \begin{lstlisting}[language=C]
 void function(int n) {
@@ -155,6 +291,68 @@ Las constantes $1/3$ y $1/4$ (y el paso de 4) solo afectan la constante multipli
 
 \textit{Verificación:} $n=1000 \Rightarrow 333\cdot 250 = 83\,250$ impresiones, igual que el programa.
 
+\subsection*{Parte b --- Implementación y profiling}
+
+Código completo (\texttt{src/problema3.c}):
+
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+static long long impresiones = 0;
+
+void function(int n) {
+    int i, j;
+    for (i = 1; i <= n / 3; i++) {
+        for (j = 1; j <= n; j += 4) {
+            printf("Sequence\n");
+            impresiones++;
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Uso: %s <n>\n", argv[0]);
+        return 1;
+    }
+    int n = atoi(argv[1]);
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    function(n);
+    fflush(stdout);
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    double secs = (t1.tv_sec - t0.tv_sec) + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+    fprintf(stderr, "%d,%lld,%.9f\n", n, impresiones, secs);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{rrrl}
+\toprule
+$n$ & Operaciones & Tiempo & Tipo \\
+\midrule
+1 & 0 & 4.32 \textmu s & medido \\
+10 & 9 & 22.75 \textmu s & medido \\
+100 & 825 & 32.12 \textmu s & medido \\
+1{,}000 & 83{,}250 & 1.124 ms & medido \\
+10{,}000 & 8{,}332{,}500 & 99.584 ms & medido \\
+100{,}000 & 833{,}325{,}000 & 10.107 s & medido \\
+1{,}000{,}000 & 83{,}333{,}250{,}000 & 1023.799 s & medido \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{../resultados/problema3.png}
+\caption{Problema 3: tamaño de input $n$ vs. tiempo (escala log-log).}
+\end{figure}
+
+Cada $\times 10$ en $n$ multiplica el tiempo por $\approx 100$, consistente con $O(n^2)$. Las operaciones son exactamente $\lfloor n/3\rfloor \cdot \lceil n/4\rceil \approx n^2/12$, como se verifica en la columna de operaciones.
+
 %=====================================================================
 \section*{Problema 4 --- Mejor, promedio y peor caso}
 
@@ -170,7 +368,7 @@ def linear_search(A, x):
     return -1
 \end{lstlisting}
 
-\begin{itemize}[leftmargin=1.2em]
+\begin{itemize}
 \item \textbf{Mejor caso:} $x$ está en la primera posición. Se hace 1 comparación: $T(n) = 1 = \Th(1)$.
 \item \textbf{Peor caso:} $x$ está en la última posición o no está. Se recorren los $n$ elementos: $T(n) = n = \Th(n)$.
 \item \textbf{Caso promedio:} supongamos que $x$ está en el arreglo y que cada posición $i \in \{1,\dots,n\}$ es igualmente probable ($p = 1/n$). Encontrarlo en la posición $i$ cuesta $i$ comparaciones:
@@ -195,7 +393,7 @@ def binary_search(A, x):
 
 Cada iteración hace un número constante de comparaciones y reduce el intervalo a la mitad (o menos). Recurrencia: $T(n) = T(n/2) + c$.
 
-\begin{itemize}[leftmargin=1.2em]
+\begin{itemize}
 \item \textbf{Mejor caso:} $x$ está justo en el primer \texttt{mid}. Una sola iteración: $T(n) = \Th(1)$.
 \item \textbf{Peor caso:} $x$ no está (o se encuentra en la última iteración). Desenrollando la recurrencia:
 \[
@@ -224,7 +422,7 @@ Particionar un subarreglo de tamaño $n$ cuesta $n-1$ comparaciones ($\Th(n)$). 
 T(n) = T(q) + T(n-1-q) + (n-1), \qquad T(0) = T(1) = 0.
 \]
 
-\begin{itemize}[leftmargin=1.2em]
+\begin{itemize}
 \item \textbf{Mejor caso:} el pivote siempre divide el arreglo en dos mitades. $T(n) = 2T(n/2) + \Th(n)$. Por el Teorema Maestro ($a = 2$, $b = 2$, $n^{\log_2 2} = n$, $f(n) = \Th(n)$, caso 2):
 \[
 T(n) = \Th(n \log n).
@@ -279,7 +477,7 @@ Quicksort & $\Th(n\log n)$ & $\Th(n\log n)$ \;\;$(\approx 1.39\,n\log_2 n)$ & $\
 \section*{Problema 5 --- Verdadero o falso}
 
 Recordatorio de definiciones (para funciones positivas):
-\begin{itemize}[leftmargin=1.2em]
+\begin{itemize}
 \item $f = O(g) \iff \exists\, c>0, n_0 : f(n) \le c\, g(n)\ \forall n\ge n_0$.
 \item $f = \Omega(g) \iff \exists\, c>0, n_0 : f(n) \ge c\, g(n)\ \forall n\ge n_0$.
 \item $f = \Th(g) \iff \exists\, c_1, c_2 >0, n_0 : c_1 g(n) \le f(n) \le c_2 g(n)\ \forall n\ge n_0$.
@@ -325,7 +523,7 @@ def A(n):
 
 La trampa es suponer que el cuerpo del ciclo es $O(1)$. Si lo fuera, el número de iteraciones sería $\sum_{i=0}^{n-1}(n-1-i) = \frac{n(n-1)}{2} = \Th(n^2)$. Pero el cuerpo \textbf{no} es constante:
 
-\begin{enumerate}[leftmargin=1.5em]
+\begin{enumerate}
 \item \textbf{\texttt{atupla[i:j]}} crea una tupla \emph{nueva} copiando $j-i$ elementos: costo $\Th(j-i)$. En Python, el slicing de tuplas copia (no es una vista).
 \item \textbf{\texttt{S.add(...)}} debe calcular el hash de la tupla, y el hash de una tupla recorre todos sus elementos: costo $\Th(j-i)$. Como todas las rebanadas son distintas (los elementos de \texttt{atupla} son distintos), en esperanza no hay comparaciones extra por colisiones, y la inserción en la tabla hash es $O(1)$ amortizado aparte del hash.
 \item \texttt{tuple(range(0, n))} al inicio cuesta $\Th(n)$, que es despreciable.
