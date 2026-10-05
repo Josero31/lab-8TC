@@ -557,4 +557,69 @@ $n$ & tiempo (s) & $t(n)/t(n/2)$ & $t/n^2$ (ns) & $t/n^3$ (ns) \\
 
 La razón al duplicar $n$ se mantiene cerca de 8 y $t/n^3$ se mantiene aproximadamente constante, mientras que $t/n^2$ crece con $n$. Esto confirma $f(n) = \Th(n^3)$.
 
+%=====================================================================
+\section*{Capturas de ejecución}
+
+A continuación, evidencia de que los programas de la parte b compilan y corren correctamente, con la salida real de terminal (formato \texttt{n,operaciones,tiempo\_s}). Estas capturas se tomaron en una máquina local de verificación; la tabla completa de profiling oficial (hasta $n=1\,000\,000$, medida con \texttt{clock\_gettime} en una VM Linux) está en \texttt{README.md} y \texttt{resultados/} del repositorio, y resumida en la sección \emph{Resultados} del README.
+
+\subsection*{Problema 1}
+\begin{lstlisting}[style=consola]
+$ gcc -O2 -Wall -o problema1 src/problema1.c
+$ ./problema1 1
+1,2,0.000000000
+$ ./problema1 10
+10,120,0.000000000
+$ ./problema1 100
+100,17850,0.000000000
+$ ./problema1 1000
+1000,2505000,0.000000000
+$ ./problema1 10000
+10000,350070000,0.127000000
+\end{lstlisting}
+
+\subsection*{Problema 2}
+\begin{lstlisting}[style=consola]
+$ gcc -O2 -Wall -o problema2 src/problema2.c
+$ ./problema2 1 > /dev/null
+1,0,0.000000000
+$ ./problema2 10 > /dev/null
+10,10,0.000000000
+$ ./problema2 100 > /dev/null
+100,100,0.000000000
+$ ./problema2 1000 > /dev/null
+1000,1000,0.000000000
+$ ./problema2 10000 > /dev/null
+10000,10000,0.010000000
+$ ./problema2 100000 > /dev/null
+100000,100000,0.091000000
+\end{lstlisting}
+
+\subsection*{Problema 3}
+\begin{lstlisting}[style=consola]
+$ gcc -O2 -Wall -o problema3 src/problema3.c
+$ ./problema3 1 > /dev/null
+1,0,0.000000000
+$ ./problema3 10 > /dev/null
+10,9,0.000000000
+$ ./problema3 100 > /dev/null
+100,825,0.005000000
+$ ./problema3 1000 > /dev/null
+1000,83250,0.082000000
+$ ./problema3 10000 > /dev/null
+10000,8332500,7.771000000
+\end{lstlisting}
+
+\subsection*{Problema 5c --- verificación empírica}
+\begin{lstlisting}[style=consola]
+$ python src/problema5c.py
+     n   tiempo (s)  t(n)/t(n/2)   t/n^2 (ns)   t/n^3 (ns)
+   100       0.0015            -       147.70        1.477
+   200       0.0121         8.21       303.08        1.515
+   400       0.0970         8.00       606.42        1.516
+   800       0.7625         7.86      1191.48        1.489
+  1600       8.6104        11.29      3363.43        2.102
+\end{lstlisting}
+
+En los cuatro casos el número de operaciones contado coincide con la fórmula exacta de la parte a correspondiente, y la razón $t(n)/t(n/2)$ de la última captura ronda 8, confirmando $\Th(n^3)$ para el problema 5c.
+
 \end{document}
